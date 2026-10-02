@@ -4,6 +4,7 @@ namespace Rennokki\QueryCache\Query;
 
 use Illuminate\Database\Query\Builder as BaseBuilder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Rennokki\QueryCache\Contracts\QueryCacheModuleInterface;
 use Rennokki\QueryCache\Traits\QueryCacheModule;
 
@@ -16,9 +17,17 @@ class Builder extends BaseBuilder implements QueryCacheModuleInterface
      */
     public function get($columns = ['*'])
     {
-        return $this->shouldAvoidCache()
-            ? parent::get($columns)
-            : $this->getFromQueryCache('get', Arr::wrap($columns));
+        if ($this->shouldAvoidCache()) {
+            return parent::get($columns);
+        }
+
+        $results = $this->getFromQueryCache('get', Arr::wrap($columns));
+
+        // Rows are cached as plain arrays; entries cached by older
+        // versions of this package may still be Collection instances.
+        return $results instanceof Collection
+            ? $results
+            : new Collection(array_map(fn ($row) => (object) $row, $results));
     }
 
     /**

@@ -4,6 +4,7 @@ namespace Rennokki\QueryCache\Traits;
 
 use BadMethodCallException;
 use DateTime;
+use Illuminate\Support\Collection;
 
 trait QueryCacheModule
 {
@@ -100,7 +101,13 @@ trait QueryCacheModule
         return function () use ($method, $columns) {
             $this->avoidCache = true;
 
-            return $this->{$method}($columns);
+            $result = $this->{$method}($columns);
+
+            // Laravel 13+ may forbid unserializing objects from the cache
+            // (cache.serializable_classes), so store the rows as plain arrays.
+            return $result instanceof Collection
+                ? $result->map(fn ($row) => (array) $row)->all()
+                : $result;
         };
     }
 
